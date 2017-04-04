@@ -14,7 +14,7 @@ pdStock = ts.get_stock_basics()
 class jbm:
     def __init__(self, code):
         self.__code = code
-        self.__getContent = getContent.saveToFile()
+        self.__getContent = getContent.saveToFile('yb')
         self.__name = pdStock.loc[code]['name']
 
     def isSave(self, filename):
@@ -70,8 +70,12 @@ class jbm:
         ybsUrl = selector.xpath('//div[@class = "report"]/a')
 
         #print(ybsUrl)
-        for yburl in ybsUrl:    # todo 增加研报日期
-
+        for yburl in ybsUrl:
+            ybPubTime = yburl.xpath('../span/samp/text()')[0]
+            if int(ybPubTime.split('-')[0]) < (datetime.datetime.now().year-1):
+                #print(ybPubTime.split('-')[0])
+                continue
+            #print(datetime.datetime.now().year-1)
             ybHtml = requests.get(yburl.xpath('./@href')[0], headers=headers)
             ybHtml.encoding = 'utf-8'
             ybSelector = etree.HTML(ybHtml.content)
@@ -80,9 +84,10 @@ class jbm:
             for p in txts:
                 txtYB += '    ' + p.xpath('string(.)') + '\r\n'
             if txtYB != '':
-                fileName = self.__code + self.__name + ' ' + (yburl.xpath('./text()')[0])
-                self.save(fileName, txtYB)
-                self.sendToKindle(fileName)
+                fileName = self.__code + self.__name + ybPubTime + '研报 ' + (yburl.xpath('./text()')[0])
+                if not self.isSave(fileName):
+                    self.save(fileName, txtYB)
+                    self.sendToKindle(fileName)
         '''
         txtHxgn = ''
         for p in hxgn:
@@ -173,8 +178,13 @@ class jbm:
                 fileUrl = fSelector.xpath('//a[contains(text(),"查看PDF公告")]/@href')[0]
                 dataPub = fSelector.xpath('//td[contains(text(),"公告日期")]/text()')[0]
 
-                fileName = (name + str(int(dataPub.split(':')[1].split('-')[0])) + '年3季报')
+                nbName = (name + str(int(dataPub.split(':')[1].split('-')[0])) + '年报')
+                nbLocal = './' + dirName + '/' + nbName + '.pdf'
+                if os.path.isfile(nbLocal):
+                    print(nbName + ' is downloaded')
+                    return
 
+                fileName = (name + str(int(dataPub.split(':')[1].split('-')[0])) + '年3季报')
                 local = './' + dirName + '/' + fileName + '.pdf'
                 if not os.path.isfile(local):
                     # print(local)
